@@ -43,7 +43,8 @@ export default function GraphDetailScreen() {
     deleteGraph, 
     updateGraphColor,
     toggleGraphInverted,
-    toggleGraphGrid
+    toggleGraphGrid,
+    updateGraphAvgWindowSize
   } = useGraphStore();
   
   const graph = graphs.find((g) => g.id === id);
@@ -55,6 +56,7 @@ export default function GraphDetailScreen() {
   const [editValues, setEditValues] = useState('');
 
   const [isSettingsModalVisible, setIsSettingsModalVisible] = useState(false);
+  const [tempAvgWindowSize, setTempAvgWindowSize] = useState('');
 
   if (!graph) {
     return (
@@ -66,6 +68,20 @@ export default function GraphDetailScreen() {
 
   const graphColor = graph.color || GRAPH_COLORS[0];
   const showGrid = graph.showGrid !== false; // Default true
+  const avgWindowSize = graph.avgWindowSize || 1; // Default 1 (no averaging)
+
+  const handleOpenSettings = () => {
+    setTempAvgWindowSize(avgWindowSize.toString());
+    setIsSettingsModalVisible(true);
+  }
+
+  const handleSaveSettings = () => {
+    const size = parseInt(tempAvgWindowSize);
+    if (!isNaN(size) && size > 0) {
+      updateGraphAvgWindowSize(graph.id, size);
+    }
+    setIsSettingsModalVisible(false);
+  }
 
   const handleAddValue = () => {
     const values = newValue.trim().split(/\s+/).map(v => parseFloat(v)).filter(v => !isNaN(v));
@@ -125,11 +141,27 @@ export default function GraphDetailScreen() {
     }
   };
 
-  const displayValues = graph.values.length > 0 ? graph.values : [0];
+  const calculateDisplayValues = () => {
+    if (!graph.values || graph.values.length === 0) return [0];
+    
+    if (avgWindowSize <= 1) {
+      return graph.values;
+    }
+
+    const aggregatedValues = [];
+    for (let i = 0; i < graph.values.length; i += avgWindowSize) {
+      const window = graph.values.slice(i, i + avgWindowSize);
+      const avg = window.reduce((sum, val) => sum + val, 0) / window.length;
+      aggregatedValues.push(avg);
+    }
+    return aggregatedValues;
+  };
+
+  const displayValues = calculateDisplayValues();
   const chartDataValues = graph.inverted ? displayValues.map(v => -v) : displayValues;
 
   const data = {
-    labels: graph.values.length > 0 ? graph.values.map((_, i) => (i + 1).toString()) : ['Start'],
+    labels: displayValues.length > 0 ? displayValues.map((_, i) => (i + 1).toString()) : ['Start'],
     datasets: [
       {
         data: chartDataValues,
@@ -186,7 +218,7 @@ export default function GraphDetailScreen() {
         options={{ 
           title: graph.name,
           headerRight: () => (
-            <TouchableOpacity onPress={() => setIsSettingsModalVisible(true)} style={{ padding: 10 }}>
+            <TouchableOpacity onPress={handleOpenSettings} style={{ padding: 10 }}>
               <FontAwesome name="cog" size={24} color={Colors[colorScheme].text} />
             </TouchableOpacity>
           ),
@@ -397,6 +429,24 @@ export default function GraphDetailScreen() {
                />
             </View>
 
+            {/* Avg Window Size Input */}
+            <View style={{ marginBottom: 20 }}>
+              <Text style={[styles.label, { color: Colors[colorScheme].text }]}>
+                Average Window Size (1 = no averaging)
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  { color: Colors[colorScheme].text, borderColor: Colors[colorScheme].text, marginBottom: 0 },
+                ]}
+                placeholder="1"
+                placeholderTextColor={Colors[colorScheme].tabIconDefault}
+                keyboardType="numeric"
+                value={tempAvgWindowSize}
+                onChangeText={setTempAvgWindowSize}
+              />
+            </View>
+
             {/* Delete Button */}
             <TouchableOpacity 
               onPress={handleDelete}
@@ -406,7 +456,7 @@ export default function GraphDetailScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => setIsSettingsModalVisible(false)}
+              onPress={handleSaveSettings}
               style={[styles.actionButton, { backgroundColor: '#ccc', marginTop: 10 }]}
             >
               <Text style={styles.buttonText}>Close</Text>
