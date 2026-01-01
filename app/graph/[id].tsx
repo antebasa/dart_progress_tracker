@@ -155,12 +155,11 @@ export default function GraphDetailScreen() {
           data={data}
           width={screenWidth - 20}
           height={300}
-          yAxisLabel=""
+          yAxisLabel={graph.inverted ? "" : ""}
           yAxisSuffix=""
           chartConfig={chartConfig}
           verticalLabelRotation={30}
           fromZero
-          yAxisLabel={graph.inverted ? "" : undefined}
           formatYLabel={formatYLabel}
         />
       );
@@ -202,7 +201,9 @@ export default function GraphDetailScreen() {
           borderWidth: 1
         }
       ]}>
-        {renderChart()}
+        <TouchableOpacity onPress={() => router.push(`/graph/landscape/${graph.id}`)}>
+          {renderChart()}
+        </TouchableOpacity>
       </View>
 
       <View style={styles.controls}>
