@@ -26,6 +26,7 @@ export interface Graph {
   inverted: boolean;
   showGrid: boolean;
   avgWindowSize: number;
+  showLastN?: number;
 }
 
 export type CounterMode = 'all' | 'target';
@@ -45,6 +46,7 @@ interface GraphState {
   toggleGraphInverted: (graphId: string) => void;
   toggleGraphGrid: (graphId: string) => void;
   updateGraphAvgWindowSize: (graphId: string, windowSize: number) => void;
+  updateGraphShowLastN: (graphId: string, n: number | null) => void;
   incrementCounter: (amount: number) => void;
   resetCounter: () => void;
   setCounterMode: (mode: CounterMode) => void;
@@ -70,6 +72,7 @@ export const useGraphStore = create<GraphState>()(
               inverted: false,
               showGrid: false,
               avgWindowSize: 1,
+              showLastN: undefined,
             },
           ],
         })),
@@ -123,6 +126,12 @@ export const useGraphStore = create<GraphState>()(
         set((state) => ({
           graphs: state.graphs.map((g) =>
             g.id === graphId ? { ...g, avgWindowSize: windowSize } : g
+          ),
+        })),
+      updateGraphShowLastN: (graphId, n) =>
+        set((state) => ({
+          graphs: state.graphs.map((g) =>
+            g.id === graphId ? { ...g, showLastN: n !== null ? n : undefined } : g
           ),
         })),
       incrementCounter: (amount) =>

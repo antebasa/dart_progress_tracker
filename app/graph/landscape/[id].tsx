@@ -60,6 +60,8 @@ export default function LandscapeGraphScreen() {
 
   const graphColor = graph.color || GRAPH_COLORS[0];
   const showGrid = graph.showGrid !== false;
+  const avgWindowSize = graph.avgWindowSize || 1; // Default 1
+  const showLastN = graph.showLastN;
 
   // Use the larger dimension as width for landscape
   const chartWidth = Math.max(width, height) - 40; // minimal padding
@@ -78,11 +80,34 @@ export default function LandscapeGraphScreen() {
     }
   };
 
-  const displayValues = graph.values.length > 0 ? graph.values : [0];
+  const calculateDisplayValues = () => {
+    let valuesToProcess = graph.values || [];
+    
+    // Apply "Show Last N" filter first
+    if (showLastN && showLastN > 0 && valuesToProcess.length > showLastN) {
+      valuesToProcess = valuesToProcess.slice(valuesToProcess.length - showLastN);
+    }
+
+    if (valuesToProcess.length === 0) return [0];
+    
+    if (avgWindowSize <= 1) {
+      return valuesToProcess;
+    }
+
+    const aggregatedValues = [];
+    for (let i = 0; i < valuesToProcess.length; i += avgWindowSize) {
+      const window = valuesToProcess.slice(i, i + avgWindowSize);
+      const avg = window.reduce((sum, val) => sum + val, 0) / window.length;
+      aggregatedValues.push(avg);
+    }
+    return aggregatedValues;
+  };
+
+  const displayValues = calculateDisplayValues();
   const chartDataValues = graph.inverted ? displayValues.map(v => -v) : displayValues;
 
   const data = {
-    labels: graph.values.length > 0 ? graph.values.map((_, i) => (i + 1).toString()) : ['Start'],
+    labels: displayValues.length > 0 ? displayValues.map((_, i) => (i + 1).toString()) : ['Start'],
     datasets: [
       {
         data: chartDataValues,
@@ -117,6 +142,7 @@ export default function LandscapeGraphScreen() {
           chartConfig={chartConfig}
           verticalLabelRotation={30}
           fromZero
+          // @ts-ignore
           formatYLabel={formatYLabel}
         />
       );

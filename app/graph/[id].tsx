@@ -44,7 +44,8 @@ export default function GraphDetailScreen() {
     updateGraphColor,
     toggleGraphInverted,
     toggleGraphGrid,
-    updateGraphAvgWindowSize
+    updateGraphAvgWindowSize,
+    updateGraphShowLastN
   } = useGraphStore();
   
   const graph = graphs.find((g) => g.id === id);
@@ -57,6 +58,9 @@ export default function GraphDetailScreen() {
 
   const [isSettingsModalVisible, setIsSettingsModalVisible] = useState(false);
   const [tempAvgWindowSize, setTempAvgWindowSize] = useState('');
+  
+  // Local state for the "Show Last N" input
+  const [tempShowLastN, setTempShowLastN] = useState('');
 
   if (!graph) {
     return (
@@ -69,6 +73,16 @@ export default function GraphDetailScreen() {
   const graphColor = graph.color || GRAPH_COLORS[0];
   const showGrid = graph.showGrid !== false; // Default true
   const avgWindowSize = graph.avgWindowSize || 1; // Default 1 (no averaging)
+  const showLastN = graph.showLastN;
+
+  // Sync temp state with graph state
+  React.useEffect(() => {
+    if (showLastN !== undefined) {
+      setTempShowLastN(showLastN.toString());
+    } else {
+      setTempShowLastN('');
+    }
+  }, [showLastN]);
 
   const handleOpenSettings = () => {
     setTempAvgWindowSize(avgWindowSize.toString());
@@ -141,16 +155,32 @@ export default function GraphDetailScreen() {
     }
   };
 
+  const handleSaveShowLastN = () => {
+    const n = parseInt(tempShowLastN);
+    if (!isNaN(n) && n > 0) {
+      updateGraphShowLastN(graph.id, n);
+    } else {
+      updateGraphShowLastN(graph.id, null); // Clear if invalid or empty
+    }
+  }
+
   const calculateDisplayValues = () => {
-    if (!graph.values || graph.values.length === 0) return [0];
+    let valuesToProcess = graph.values || [];
+    
+    // Apply "Show Last N" filter first
+    if (showLastN && showLastN > 0 && valuesToProcess.length > showLastN) {
+      valuesToProcess = valuesToProcess.slice(valuesToProcess.length - showLastN);
+    }
+
+    if (valuesToProcess.length === 0) return [0];
     
     if (avgWindowSize <= 1) {
-      return graph.values;
+      return valuesToProcess;
     }
 
     const aggregatedValues = [];
-    for (let i = 0; i < graph.values.length; i += avgWindowSize) {
-      const window = graph.values.slice(i, i + avgWindowSize);
+    for (let i = 0; i < valuesToProcess.length; i += avgWindowSize) {
+      const window = valuesToProcess.slice(i, i + avgWindowSize);
       const avg = window.reduce((sum, val) => sum + val, 0) / window.length;
       aggregatedValues.push(avg);
     }
@@ -192,6 +222,7 @@ export default function GraphDetailScreen() {
           chartConfig={chartConfig}
           verticalLabelRotation={30}
           fromZero
+          // @ts-ignore
           formatYLabel={formatYLabel}
         />
       );
@@ -275,6 +306,31 @@ export default function GraphDetailScreen() {
              <FontAwesome name="edit" size={20} color={Colors[colorScheme].text} />
           </TouchableOpacity>
         </View>
+
+        {/* Show Last N Input */}
+        <View style={styles.filterContainer}>
+          <Text style={[styles.label, { color: Colors[colorScheme].text, marginBottom: 0, marginRight: 10, fontSize: 14 }]}>Show Last:</Text>
+          <TextInput
+            style={[
+              styles.input,
+              { 
+                color: Colors[colorScheme].text, 
+                borderColor: Colors[colorScheme].text, 
+                marginBottom: 0, 
+                width: 60, 
+                height: 40,
+                textAlign: 'center'
+              },
+            ]}
+            placeholder="All"
+            placeholderTextColor={Colors[colorScheme].tabIconDefault}
+            keyboardType="numeric"
+            value={tempShowLastN}
+            onChangeText={setTempShowLastN}
+            onEndEditing={handleSaveShowLastN}
+          />
+        </View>
+
         <View style={styles.valuesList}>
           <Text style={{ color: Colors[colorScheme].text }}>
              {graph.values.join(', ')}
@@ -541,6 +597,12 @@ const styles = StyleSheet.create({
   },
   valuesList: {
     // marginTop: 10,
+  },
+  filterContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    marginTop: 5,
   },
   modalOverlay: {
     flex: 1,
