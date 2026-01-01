@@ -31,7 +31,7 @@ const hexToRgba = (hex: string, opacity: number) => {
 export default function HomeScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme() ?? 'light';
-  const { graphs, addGraph } = useGraphStore();
+  const { graphs, addGraph, reorderGraph } = useGraphStore();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [newGraphName, setNewGraphName] = useState('');
   const [selectedColor, setSelectedColor] = useState(GRAPH_COLORS[0]);
@@ -43,6 +43,10 @@ export default function HomeScreen() {
       setSelectedColor(GRAPH_COLORS[0]);
       setIsModalVisible(false);
     }
+  };
+
+  const handleReorder = (graphId: string, direction: 'up' | 'down') => {
+    reorderGraph(graphId, direction);
   };
 
   const renderGraphPreview = (item: Graph) => {
@@ -107,7 +111,7 @@ export default function HomeScreen() {
         data={graphs}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
-        renderItem={({ item }) => {
+        renderItem={({ item, index }) => {
           const graphColor = item.color || GRAPH_COLORS[0];
           // Create a subtle background tint based on the graph color
           const cardBackgroundColor = colorScheme === 'dark' 
@@ -120,30 +124,49 @@ export default function HomeScreen() {
             : '0.0';
           
           return (
-            <TouchableOpacity
-              style={[
-                styles.card,
-                { backgroundColor: cardBackgroundColor, borderColor: hexToRgba(graphColor, 0.3), borderWidth: 1 },
-              ]}
-              onPress={() => router.push(`/graph/${item.id}`)}
-            >
-              <View style={styles.cardHeader}>
-                <Text style={[styles.cardTitle, { color: Colors[colorScheme].text }]}>
-                  {item.name}
-                </Text>
-                <Text style={[styles.statText, { color: Colors[colorScheme].text }]}>
-                  avg: {average}
-                </Text>
+            <View style={[
+              styles.cardContainer,
+              { backgroundColor: cardBackgroundColor, borderColor: hexToRgba(graphColor, 0.3), borderWidth: 1 }
+            ]}>
+              <View style={styles.reorderControls}>
+                <TouchableOpacity 
+                  onPress={() => handleReorder(item.id, 'up')}
+                  disabled={index === 0}
+                  style={[styles.reorderButton, index === 0 && styles.disabledButton]}
+                >
+                  <FontAwesome name="chevron-up" size={16} color={Colors[colorScheme].text} />
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  onPress={() => handleReorder(item.id, 'down')}
+                  disabled={index === graphs.length - 1}
+                  style={[styles.reorderButton, index === graphs.length - 1 && styles.disabledButton]}
+                >
+                  <FontAwesome name="chevron-down" size={16} color={Colors[colorScheme].text} />
+                </TouchableOpacity>
               </View>
-              
-              <View style={styles.chartPreview}>{renderGraphPreview(item)}</View>
 
-              <View style={styles.cardFooter}>
-                 <Text style={[styles.statText, { color: Colors[colorScheme].text }]}>
-                   n: {totalInputs}
-                 </Text>
-              </View>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.cardContent}
+                onPress={() => router.push(`/graph/${item.id}`)}
+              >
+                <View style={styles.cardHeader}>
+                  <Text style={[styles.cardTitle, { color: Colors[colorScheme].text }]}>
+                    {item.name}
+                  </Text>
+                  <Text style={[styles.statText, { color: Colors[colorScheme].text }]}>
+                    avg: {average}
+                  </Text>
+                </View>
+                
+                <View style={styles.chartPreview}>{renderGraphPreview(item)}</View>
+
+                <View style={styles.cardFooter}>
+                   <Text style={[styles.statText, { color: Colors[colorScheme].text }]}>
+                     n: {totalInputs}
+                   </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
           );
         }}
       />
@@ -232,10 +255,31 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 100,
   },
-  card: {
-    padding: 15,
+  cardContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     borderRadius: 16,
     marginBottom: 15,
+    overflow: 'hidden',
+  },
+  reorderControls: {
+    paddingVertical: 10,
+    paddingHorizontal: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRightWidth: 1,
+    borderRightColor: 'rgba(0,0,0,0.1)',
+    backgroundColor: 'rgba(0,0,0,0.02)',
+  },
+  reorderButton: {
+    padding: 8,
+  },
+  disabledButton: {
+    opacity: 0.3,
+  },
+  cardContent: {
+    flex: 1,
+    padding: 15,
   },
   cardHeader: {
     flexDirection: 'row',

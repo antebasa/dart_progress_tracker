@@ -47,6 +47,7 @@ interface GraphState {
   toggleGraphGrid: (graphId: string) => void;
   updateGraphAvgWindowSize: (graphId: string, windowSize: number) => void;
   updateGraphShowLastN: (graphId: string, n: number | null) => void;
+  reorderGraph: (graphId: string, direction: 'up' | 'down') => void;
   incrementCounter: (amount: number) => void;
   resetCounter: () => void;
   setCounterMode: (mode: CounterMode) => void;
@@ -134,6 +135,20 @@ export const useGraphStore = create<GraphState>()(
             g.id === graphId ? { ...g, showLastN: n !== null ? n : undefined } : g
           ),
         })),
+      reorderGraph: (graphId, direction) =>
+        set((state) => {
+          const index = state.graphs.findIndex((g) => g.id === graphId);
+          if (index === -1) return {};
+
+          const newGraphs = [...state.graphs];
+          if (direction === 'up' && index > 0) {
+            [newGraphs[index], newGraphs[index - 1]] = [newGraphs[index - 1], newGraphs[index]];
+          } else if (direction === 'down' && index < newGraphs.length - 1) {
+            [newGraphs[index], newGraphs[index + 1]] = [newGraphs[index + 1], newGraphs[index]];
+          }
+
+          return { graphs: newGraphs };
+        }),
       incrementCounter: (amount) =>
         set((state) => {
           const newState: Partial<GraphState> = {
